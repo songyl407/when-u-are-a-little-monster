@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MediaPipe Hands + p5.js Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <style>
+    body { 
+      margin: 0; 
+      overflow: hidden;
+      background: #f0f0f0; 
+    }
+    canvas { 
+      display: block; 
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+    #status {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      color: #333;
+      font-family: Arial, sans-serif;
+      z-index: 100;
+    }
+    .intro-text {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255, 255, 255, 0.95);
+      font-family: "Microsoft YaHei", sans-serif;
+      font-size: 18px;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.5s ease-in-out;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      z-index: 2001;
+      padding: 30px 50px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 15px;
+      backdrop-filter: blur(5px);
+      max-width: 600px;
+      line-height: 1.8;
+    }
+    .intro-text.show {
+      opacity: 1;
+    }
+    .intro-text.fade-out {
+      opacity: 0;
+    }
+    .hint-text {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255, 255, 255, 0.95);
+      font-family: "Microsoft YaHei", sans-serif;
+      font-size: 18px;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.5s ease-in-out;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      z-index: 2001;
+      padding: 30px 50px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 15px;
+      backdrop-filter: blur(5px);
+      max-width: 600px;
+      line-height: 1.8;
+    }
+    .hint-text.show {
+      opacity: 1;
+    }
+    .hint-text.fade-out {
+      opacity: 0;
+    }
+    .simple-text {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255, 255, 255, 1);
+      font-family: "Microsoft YaHei", sans-serif;
+      font-size: 24px;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.5s ease-in-out;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      z-index: 2001;
+    }
+    .simple-text.show {
+      opacity: 1;
+    }
+    .simple-text.fade-out {
+      opacity: 0;
+    }
+    .story-button {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255, 255, 255, 0.95);
+      font-family: "Microsoft YaHei", sans-serif;
+      font-size: 18px;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.5s ease-in-out;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      z-index: 2001;
+      padding: 30px 50px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 15px;
+      backdrop-filter: blur(5px);
+      max-width: 600px;
+      line-height: 1.8;
+      cursor: pointer;
+    }
+    .story-button.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .story-button.fade-out {
+      opacity: 0;
+    }
+    .continue-button {
+      position: fixed;
+      bottom: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.95);
+      font-family: "Microsoft YaHei", sans-serif;
+      font-size: 18px;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.5s ease-in-out;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      z-index: 2001;
+      padding: 15px 40px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 30px;
+      backdrop-filter: blur(5px);
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+    .continue-button.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .continue-button.fade-out {
+      opacity: 0;
+    }
+    .continue-button:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: translateX(-50%) translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+</head>
+<body>
+    <audio id="splashSound">
+        <source src="3333.mp3" type="audio/mpeg">
+    </audio>
+<div class="intro-text">我好像消失了？变成了...</div>
+<div class="hint-text">请用手在屏幕前滑动，看看会出现...?</div>
+<div class="simple-text">他们好像很怕我</div>
+<div class="story-button">我看见了它们——一群细小、灵动的生物，在我靠近时，悄悄散开。<br>
+它们会逃走。会回应我。<br>
+那一刻，我忽然明白，<br>
+我不仅能被控制，还能改变别人</div>
+<div class="continue-button">我该继续探索了</div>
+<div id="status">正在加载手势识别...</div>
+<script>
+let fishes = [];
+let fishColors = ["#eee623", "#FF482D", "#e7a35", "#d8412e", "#E0A29B", "#E5412D"];
+let splashes = [];
+let lastSplashTime = 0;
+let splashInterval = 500;
+let lastMouseX = 0;
+let lastMouseY = 0;
+let splashMoveThreshold = 50;
+let fishCount = 40;
+let hands;
+let canvasElement;
+let canvasCtx;
+let videoElement;
+let camera;
+let currentResults = null;
+let lastHandPosition = { x: 0, y: 0 };
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  background("#cafafa");
+  strokeWeight(2);
+  stroke(255);
+  noFill();
+  fishes = [];
+  for (let i = 0; i < fishCount; i++) {
+    fishes.push(new Goldfish());
+  }
+  drawNoise();
+  setupHands();
+  
+  // 显示第一个进入文本
+  const introText = document.querySelector('.intro-text');
+  introText.classList.add('show');
+  
+  // 3秒后淡出第一个文本，并显示第二个提示
+  setTimeout(() => {
+    introText.classList.add('fade-out');
+    
+    // 显示第二个提示
+    const hintText = document.querySelector('.hint-text');
+    hintText.classList.add('show');
+    
+    // 5秒后淡出第二个提示
+    setTimeout(() => {
+      hintText.classList.add('fade-out');
+    }, 5000);
+  }, 3000);
+
+  // 20秒后显示故事按钮
+  setTimeout(() => {
+    const storyButton = document.querySelector('.story-button');
+    storyButton.classList.add('show');
+    
+    // 3秒后显示继续按钮
+    setTimeout(() => {
+      const continueButton = document.querySelector('.continue-button');
+      continueButton.classList.add('show');
+      
+      // 添加点击事件
+      continueButton.addEventListener('click', function() {
+        const transition = document.createElement('div');
+        transition.className = 'page-transition';
+        document.body.appendChild(transition);
+        
+        // 添加过渡效果
+        setTimeout(() => {
+          transition.classList.add('active');
+          
+          // 0.5秒后跳转
+          setTimeout(() => {
+            window.location.href = 'page3.html';
+          }, 500);
+        }, 0);
+      });
+    }, 3000);
+  }, 20000);
+}
+
+function setupHands() {
+  canvasElement = document.querySelector("canvas");
+  canvasCtx = canvasElement.getContext("2d");
+  videoElement = createCapture(VIDEO);
+  videoElement.size(640, 480);
+  videoElement.hide();
+
+  hands = new Hands({
+    locateFile: (file) => {
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+    }
+  });
+
+  hands.setOptions({
+    maxNumHands: 1,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+  });
+
+  hands.onResults(onHandResults);
+
+  camera = new Camera(videoElement.elt, {
+    onFrame: async () => {
+      await hands.send({image: videoElement.elt});
+    },
+    width: 640,
+    height: 480
+  });
+  camera.start();
+}
+
+function onHandResults(results) {
+  currentResults = results;
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    const landmarks = results.multiHandLandmarks[0];
+    const indexFinger = landmarks[8]; // 食指指尖
+    
+    // 将坐标映射到画布大小
+    const x = (1 - indexFinger.x) * width;
+    const y = indexFinger.y * height;
+    
+    // 计算移动距离
+    const dx = x - lastHandPosition.x;
+    const dy = y - lastHandPosition.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // 增加生成水波纹的条件
+    const currentTime = Date.now();
+    if (distance > splashMoveThreshold && currentTime - lastSplashTime > splashInterval) {
+      createSplash(x, y, distance);
+      lastHandPosition = { x, y };
+      lastSplashTime = currentTime;
+    }
+  }
+}
+
+function createSplash(x, y, distance) {
+    const size = map(distance, 0, 100, 20, 40);
+    const life = map(distance, 0, 100, 80, 150);
+    
+    // 限制同时存在的水波纹数量
+    if (splashes.length > 5) {
+        splashes.shift(); // 移除最旧的水波纹
+    }
+    
+    splashes.push({ x, y, size, life });
+    
+    // 播放水波纹音效
+    const splashSound = document.getElementById('splashSound');
+    if (splashSound) {
+        splashSound.volume = 0.3; // 设置音量为30%
+        splashSound.currentTime = 0; // 重置音频播放位置
+        splashSound.play().catch(function(error) {
+            console.log("音频播放失败:", error);
+            // 如果自动播放失败，添加点击事件监听
+            document.addEventListener('click', function startAudio() {
+                splashSound.play();
+                document.removeEventListener('click', startAudio);
+            }, { once: true });
+        });
+    }
+    
+    // 3秒后显示简单文字提示
+    setTimeout(() => {
+        const simpleText = document.querySelector('.simple-text');
+        simpleText.classList.add('show');
+        
+        // 3秒后淡出文字
+        setTimeout(() => {
+            simpleText.classList.add('fade-out');
+        }, 3000);
+    }, 3000);
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  drawNoise();
+  for (let fish of fishes) {
+    fish.x = constrain(fish.x, 0, width);
+    fish.y = constrain(fish.y, 0, height);
+  }
+}
+
+function draw() {
+  background("#a8e6e6");
+  drawWaveGrid();
+
+  // 更新和绘制金鱼
+  for (let fish of fishes) {
+    fish.update();
+    fish.display();
+  }
+
+  // 更新和绘制水花
+  for (let i = splashes.length - 1; i >= 0; i--) {
+    splashes[i].life -= 2.5;
+    splashes[i].size += 3;
+    
+    if (splashes[i].life <= 0) {
+      splashes.splice(i, 1);
+    } else {
+      noFill();
+      // 主水波纹
+      stroke(255, splashes[i].life);
+      ellipse(splashes[i].x, splashes[i].y, splashes[i].size, splashes[i].size);
+      
+      // 外层水波纹
+      stroke(255, splashes[i].life * 0.6);
+      ellipse(splashes[i].x, splashes[i].y, splashes[i].size * 1.3, splashes[i].size * 1.3);
+      
+      // 最外层水波纹
+      stroke(255, splashes[i].life * 0.3);
+      ellipse(splashes[i].x, splashes[i].y, splashes[i].size * 1.6, splashes[i].size * 1.6);
+    }
+  }
+
+  // 如果检测到手势，显示状态
+  if (currentResults && currentResults.multiHandLandmarks && currentResults.multiHandLandmarks.length > 0) {
+    document.getElementById('status').textContent = "手势识别已就绪！";
+  } else {
+    document.getElementById('status').textContent = "等待手势...";
+  }
+}
+
+function drawWaveGrid() {
+  stroke(255, 150);
+  strokeWeight(1.5);
+  
+  // 水平波浪线
+  for (let y = 0; y < height; y += 40) {
+    beginShape();
+    for (let x = 0; x < width; x += 5) {
+      let waveY = y + sin(x * 0.02 + frameCount * 0.02) * 8;
+      vertex(x, waveY);
+    }
+    endShape();
+  }
+  
+  // 垂直波浪线
+  for (let x = 0; x < width; x += 40) {
+    beginShape();
+    for (let y = 0; y < height; y += 5) {
+      let waveX = x + sin(y * 0.02 + frameCount * 0.02) * 8;
+      vertex(waveX, y);
+    }
+    endShape();
+  }
+}
+
+function drawNoise() {
+  loadPixels();
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let index = (x + y * width) * 4;
+      let r = noise(x * 0.01, y * 0.01) * 255;
+      pixels[index] = r;
+      pixels[index + 1] = r;
+      pixels[index + 2] = r;
+      pixels[index + 3] = 255;
+    }
+  }
+  updatePixels();
+}
+
+// 金鱼类
+class Goldfish {
+  constructor() {
+    this.x = random(width * 0.1, width * 0.9);
+    this.y = random(height * 0.1, height * 0.9);
+    this.size = random(20, 40);
+    this.speedX = random(-2, 2);
+    this.speedY = random(-2, 2);
+    this.noiseOffsetX = random(1000);
+    this.noiseOffsetY = random(1000);
+    this.tailTime = random(100);
+    this.color = color(random(fishColors));
+    this.normalSpeed = 2; // 正常速度
+    this.escapeSpeed = 8; // 进一步增加逃跑速度
+    this.recoveryRate = 0.02; // 进一步减慢恢复速度
+    this.currentSpeed = this.normalSpeed;
+    this.escapeDistance = 200; // 逃跑距离
+  }
+
+  update() {
+    // 计算基础游动方向
+    let noiseX = noise(this.noiseOffsetX + frameCount * 0.01);
+    let noiseY = noise(this.noiseOffsetY + frameCount * 0.01);
+    let targetSpeedX = map(noiseX, 0, 1, -this.normalSpeed, this.normalSpeed);
+    let targetSpeedY = map(noiseY, 0, 1, -this.normalSpeed, this.normalSpeed);
+
+    // 检查是否被水波影响
+    let isAffected = false;
+    let maxForce = 0;
+    let escapeAngle = 0;
+    let minDistance = Infinity;
+
+    for (let splash of splashes) {
+      let dx = this.x - splash.x;
+      let dy = this.y - splash.y;
+      let distance = sqrt(dx * dx + dy * dy);
+      minDistance = min(minDistance, distance);
+      
+      if (distance < this.escapeDistance) { // 使用更大的影响范围
+        isAffected = true;
+        // 计算逃离力度，距离越近力度越大
+        let force = pow((this.escapeDistance - distance) / this.escapeDistance, 2);
+        if (force > maxForce) {
+          maxForce = force;
+          escapeAngle = atan2(dy, dx);
+        }
+      }
+    }
+
+    if (isAffected) {
+      // 根据水波影响力度调整逃跑速度
+      let escapeSpeed = lerp(this.normalSpeed, this.escapeSpeed, maxForce);
+      // 如果距离太近，增加逃跑速度
+      if (minDistance < 50) {
+        escapeSpeed *= 1.5;
+      }
+      targetSpeedX = cos(escapeAngle) * escapeSpeed;
+      targetSpeedY = sin(escapeAngle) * escapeSpeed;
+    }
+
+    // 平滑地更新速度
+    this.speedX = lerp(this.speedX, targetSpeedX, 0.15);
+    this.speedY = lerp(this.speedY, targetSpeedY, 0.15);
+
+    // 更新位置
+    this.x += this.speedX;
+    this.y += this.speedY;
+
+    // 边界检查
+    if (this.x < 0) { this.x = 0; this.speedX *= -1; }
+    if (this.x > width) { this.x = width; this.speedX *= -1; }
+    if (this.y < 0) { this.y = 0; this.speedY *= -1; }
+    if (this.y > height) { this.y = height; this.speedY *= -1; }
+
+    this.angle = atan2(this.speedY, this.speedX) + PI;
+    this.tailTime += 0.03;
+  }
+
+  display() {
+    let shadowOffset = 10;
+    push();
+    translate(this.x, this.y + shadowOffset);
+    rotate(this.angle);
+    fill(0, 0, 0, 30);  // 降低投影的不透明度，并移除描边
+    noStroke();  // 移除描边
+    ellipse(0, 0, this.size * 1.2, this.size * 0.4);
+    pop();
+
+    push();
+    translate(this.x, this.y);
+    rotate(this.angle);
+
+    fill(this.color);
+    noStroke();
+    ellipse(-this.size * 0.2, 0, this.size * 1.2, this.size * 0.5);
+    triangle(-this.size * 0.4, 0, -this.size * 0.6, -this.size * 0.1, -this.size * 0.6, this.size * 0.1);
+
+    let tailAngle = sin(this.tailTime) * 15;
+    let tailX1 = this.size * 0.5;
+    let tailY1 = 0;
+    let tailX2 = this.size * 0.8;
+    let tailY2 = -this.size * 0.2 + sin(tailAngle) * 5;
+    let tailX3 = this.size * 0.8;
+    let tailY3 = this.size * 0.2 + sin(tailAngle) * 5;
+    triangle(tailX1, tailY1, tailX2, tailY2, tailX3, tailY3);
+
+    pop();
+  }
+}
+</script>
+</body>
+</html>

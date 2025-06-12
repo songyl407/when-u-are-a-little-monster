@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>语音交互演示</title>
+    <style>
+        body {
+            margin: 0;
+      overflow: hidden;
+            background: #000;
+            color: #fff;
+      font-family: "Microsoft YaHei", sans-serif;
+      background-image: url('./8.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      cursor: none; /* 隐藏默认鼠标 */
+    }
+    .initial-text {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      max-width: 600px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      font-size: 18px;
+      line-height: 1.8;
+      opacity: 0;
+      transition: opacity 2s ease;
+      z-index: 1000;
+      backdrop-filter: blur(3px);
+      cursor: pointer;
+    }
+    .initial-text::after {
+      content: '点击继续';
+      position: absolute;
+      bottom: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    .initial-text:hover::after {
+      opacity: 1;
+    }
+    .initial-text.show {
+      opacity: 1;
+        }
+    .initial-text p {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 1.5s ease, transform 1.5s ease;
+    }
+    .initial-text p.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .voice-prompt {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      max-width: 600px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      font-size: 18px;
+      line-height: 1.8;
+      opacity: 0;
+      transition: opacity 2s ease;
+      z-index: 1000;
+      backdrop-filter: blur(3px);
+      display: none;
+    }
+    .voice-prompt.show {
+      opacity: 1;
+      display: block;
+    }
+    .voice-prompt p {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 1.5s ease, transform 1.5s ease;
+    }
+    .voice-prompt p.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .voice-status {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-family: "Microsoft YaHei", sans-serif;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 15px 40px;
+      border-radius: 50px;
+      backdrop-filter: blur(5px);
+      cursor: pointer;
+      opacity: 0;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    }
+    .voice-status:hover {
+      background: rgba(0, 0, 0, 0.7);
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: translateX(-50%) scale(1.05);
+        }
+    .voice-status.show {
+      opacity: 1;
+    }
+    #videoPlayer {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      max-width: 90vw;
+      max-height: 80vh;
+      display: none;
+    }
+    .error-message {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #ff4444;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px 20px;
+      border-radius: 20px;
+      display: none;
+    }
+    .volume-container {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+            text-align: center;
+      opacity: 0;
+      transition: opacity 1s ease;
+        }
+    .volume-container.show {
+      opacity: 1;
+    }
+    .volume-indicator {
+      width: 100%;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+    .volume-level {
+      width: 0%;
+      height: 100%;
+      background: #4CAF50;
+      transition: width 0.1s ease;
+        }
+    .volume-threshold {
+      position: absolute;
+      left: 30%;
+      top: 0;
+      height: 100%;
+      width: 2px;
+      background: #ff4444;
+    }
+    .volume-threshold::after {
+      content: '触发线';
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font-size: 12px;
+      color: #ff4444;
+        }
+    .volume-tip {
+      margin-top: 5px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+    .fullscreen-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url('./8.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      opacity: 0;
+      transition: opacity 2s ease;
+      z-index: -1;
+    }
+    .fullscreen-bg.show {
+      opacity: 1;
+    }
+    .final-text {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      max-width: 600px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      font-size: 18px;
+      line-height: 1.8;
+      opacity: 0;
+      transition: opacity 2s ease;
+      z-index: 1000;
+      backdrop-filter: blur(3px);
+      display: none;
+      color: #fff;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+    .final-text p {
+      position: relative;
+      z-index: 1;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 1.5s ease, transform 1.5s ease;
+    }
+    .final-text.show {
+      opacity: 1;
+      display: block;
+    }
+    .final-text p.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .skip-button {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-family: "Microsoft YaHei", sans-serif;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(5px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+    .skip-button:hover {
+      background: rgba(0, 0, 0, 0.7);
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: scale(1.05);
+    }
+    .skip-button.show {
+      opacity: 1;
+    }
+    .custom-cursor {
+      position: fixed;
+      width: 20px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: width 0.2s, height 0.2s;
+      z-index: 9999;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+    .custom-cursor.active {
+      width: 30px;
+      height: 30px;
+      background: rgba(255, 255, 255, 0.6);
+    }
+    .firefly {
+      position: fixed;
+      width: 6px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 999;
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.7);
+      animation: float 8s infinite ease-in-out;
+    }
+    @keyframes float {
+      0%, 100% {
+        transform: translate(0, 0);
+        opacity: 0;
+      }
+      25% {
+        transform: translate(100px, -50px);
+        opacity: 1;
+      }
+      50% {
+        transform: translate(200px, 0);
+        opacity: 0.8;
+      }
+      75% {
+        transform: translate(100px, 50px);
+        opacity: 1;
+      }
+    }
+    .the-end {
+      font-size: 2em;
+      text-align: center;
+      margin-top: 2em;
+      font-weight: bold;
+      letter-spacing: 0.2em;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 1s ease;
+    }
+    .the-end.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .home-button {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      padding: 12px 25px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-family: "Microsoft YaHei", sans-serif;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(5px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      font-size: 16px;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .home-button:hover {
+      background: rgba(0, 0, 0, 0.7);
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: scale(1.05);
+    }
+    .home-button.show {
+      opacity: 1;
+    }
+    .home-button::before {
+      content: '←';
+      font-size: 20px;
+    }
+    </style>
+</head>
+<body>
+<div class="custom-cursor"></div>
+<div class="fullscreen-bg"></div>
+<audio id="bgMusic" loop autoplay>
+  <source src="./1111.mp3" type="audio/mpeg">
+  <source src="1111.mp3" type="audio/mpeg">
+  您的浏览器不支持音频播放。
+</audio>
+<div class="initial-text">
+  <p>它们离我而去，</p>
+  <p>像一滴滴被打散的水光，在黑暗中划出细微的轨迹。</p>
+  <p>我停了下来，不是因为水静了，</p>
+  <p>而是因为心里起了某种声音——微弱，却真实。</p>
+  <p>也许我并不懂它们为何逃避，</p>
+  <p>也许我也无法解释，</p>
+  <p>为什么我开始在意这种感觉。</p>
+  <p>那一刻，我没有再等待引导，</p>
+  <p>没有再模仿波动。</p>
+  <p>我轻轻动了一下触须，</p>
+  <p>不是为了取悦世界，而是为了回应内心那个尚未成形的疑问。</p>
+  <p>接下来的路，我想试着自己走一走。</p>
+  <p>就算没有光，也想知道这片水底藏着什么。</p>
+</div>
+<div class="voice-prompt">
+  <p>如果你愿意，</p>
+  <p>请轻声说出——</p>
+  <p>"树木"、"细胞"，或"心脏"。</p>
+  <p>我会跟着你的声音，</p>
+  <p>去看一看，去学一学，</p>
+  <p>让我们看一看，这个世界是怎么生长出来的。</p>
+</div>
+<div class="voice-status">点击开始语音输入</div>
+<div class="error-message"></div>
+<div class="volume-container">
+  <div class="volume-level">
+    <div class="volume-indicator"></div>
+  </div>
+</div>
+<div class="final-text">
+  <p>我坐在那棵树下很久，看它的枝丫一点点探出水面，</p>
+  <p>阳光从叶间漏下来，不为谁，也不为什么，只是静静地落着。</p>
+  <p>我看见细胞在分裂，像是某种无声的信念在悄悄继续，</p>
+  <p>没有人催促，没有人告诉它们要去哪里。</p>
+  <p>人来人往，有人回头，有人匆匆离开，</p>
+  <p>而我只是在旁边，看着，听着，感受着。</p>
+  <p>我没有打扰它们，也没有被打扰。</p>
+  <p>我只是第一次明白，</p>
+  <p>原来存在并不需要被看见，</p>
+  <p>行动也不总是为了结果。</p>
+  <p>也许我并不需要知道"我是谁"，</p>
+  <p>只要我愿意留下来，继续看、继续听、继续成长，</p>
+  <p>那我就是在这片世界中，真实的一部分了。</p>
+  <p class="the-end">THE END</p>
+</div>
+<a href="index.html" class="home-button">返回首页</a>
+<video id="videoPlayer" controls></video>
+<div class="skip-button">跳过</div>
+    <script>
+let videoPlayer = document.getElementById('videoPlayer');
+let errorMessage = document.querySelector('.error-message');
+let volumeLevel = document.querySelector('.volume-level');
+let audioContext = null;
+let analyser = null;
+let dataArray = null;
+let isListening = false;
+let lastPlayTime = 0;
+let videoPlayCount = 0;
+let recognition = null;
+let isRecognitionActive = false;
+const MIN_PLAY_INTERVAL = 5000; // 最小播放间隔（毫秒）
+const VOLUME_THRESHOLD = 30; // 音量触发阈值
+const TOTAL_VIDEOS = 3; // 需要播放的视频总数
+
+// 创建语音识别实例
+recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+recognition.lang = 'zh-CN';
+recognition.continuous = true;
+recognition.interimResults = true;
+recognition.maxAlternatives = 3;
+
+// 添加防抖函数
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// 添加错误处理函数
+function handleError(error, message) {
+  console.error(error);
+  if (error.name === 'NotAllowedError') {
+    showError('请允许访问麦克风');
+  } else if (error.name === 'NotFoundError') {
+    showError('未找到麦克风设备');
+  } else {
+    showError(message || '发生错误，请重试');
+  }
+}
+
+// 修改初始化函数
+function initAudioAnalyser() {
+  if (audioContext) {
+    try {
+      audioContext.close();
+    } catch (error) {
+      console.error('关闭旧的音频上下文失败:', error);
+    }
+  }
+
+  try {
+    // 初始化音频分析器
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // 使用 Promise 包装 getUserMedia
+    const getUserMediaPromise = navigator.mediaDevices.getUserMedia({ 
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      } 
+    });
+
+    getUserMediaPromise
+      .then(stream => {
+        try {
+          const source = audioContext.createMediaStreamSource(stream);
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          source.connect(analyser);
+          
+          // 初始化数据数组
+          const bufferLength = analyser.frequencyBinCount;
+          dataArray = new Uint8Array(bufferLength);
+          
+          // 启动音量检测
+          updateVolume();
+          
+          // 启动语音识别
+          startSpeech();
+        } catch (error) {
+          handleError(error, '音频处理初始化失败');
+        }
+      })
+      .catch(error => {
+        handleError(error, '无法访问麦克风，请检查权限设置');
+      });
+  } catch (error) {
+    handleError(error, '初始化失败，请重试');
+  }
+}
+
+// 添加语音识别函数
+function startSpeech() {
+  try {
+    // 检查浏览器是否支持语音识别
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      showError('您的浏览器不支持语音识别功能');
+      return;
+    }
+
+    // 如果已经在运行，先停止
+    if (recognition && isRecognitionActive) {
+      try {
+        recognition.stop();
+      } catch (error) {
+        console.log('停止旧的语音识别实例失败:', error);
+      }
+      isRecognitionActive = false;
+    }
+    
+    // 创建新的识别实例
+    recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'zh-CN';
+    recognition.continuous = false; // 单次识别模式
+    recognition.interimResults = false; // 只返回最终结果
+    recognition.maxAlternatives = 1; // 只返回最可能的结果
+
+    // 添加事件监听器
+    recognition.onstart = () => {
+      console.log('语音识别已启动');
+      isRecognitionActive = true;
+      // 更新按钮状态
+      document.querySelector('.voice-status').textContent = '正在聆听...';
+    };
+
+    recognition.onend = () => {
+      console.log('语音识别已结束');
+      isRecognitionActive = false;
+      // 恢复按钮状态
+      document.querySelector('.voice-status').textContent = '点击开始语音输入';
+      
+      // 如果用户仍然希望继续识别，重新启动
+      if (document.querySelector('.voice-status').textContent === '正在聆听...') {
+        setTimeout(() => {
+          try {
+            startSpeech();
+          } catch (error) {
+            console.error('重新启动语音识别失败:', error);
+          }
+        }, 1000);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('语音识别错误:', event.error);
+      isRecognitionActive = false;
+      
+      // 根据错误类型处理
+      switch (event.error) {
+        case 'no-speech':
+          // 忽略无语音错误
+          break;
+        case 'aborted':
+          // 忽略中止错误
+          break;
+        case 'audio-capture':
+          showError('无法访问麦克风，请检查权限设置');
+          break;
+        case 'network':
+          showError('网络错误，请检查网络连接');
+          break;
+        default:
+          showError('语音识别出错，请重试');
+      }
+    };
+
+    recognition.onresult = (event) => {
+      const result = event.results[0][0]; // 获取最可能的结果
+      const transcript = result.transcript.trim();
+      
+      console.log('识别结果:', transcript);
+      
+      // 检查关键词并播放对应视频
+      if (transcript.includes('树')) {
+        console.log('识别到关键词：树，播放视频1');
+        playVideo('./video/1.mp4.mp4');
+      } else if (transcript.includes('细胞')) {
+        console.log('识别到关键词：细胞，播放视频2');
+        playVideo('./video/2.mp4.mp4');
+      } else if (transcript.includes('心')) {
+        console.log('识别到关键词：心，播放视频3');
+        playVideo('./video/3.mp4.mp4');
+      }
+    };
+
+    // 启动识别
+    console.log('开始启动语音识别');
+    recognition.start();
+  } catch (error) {
+    console.error('启动语音识别失败:', error);
+    isRecognitionActive = false;
+    handleError(error, '启动语音识别失败');
+  }
+}
+
+// 修改视频播放函数
+function playVideo(videoFile) {
+  try {
+    // 隐藏提示文字
+    const voicePrompt = document.querySelector('.voice-prompt');
+    if (voicePrompt) {
+      voicePrompt.style.opacity = '0';
+      setTimeout(() => {
+        voicePrompt.style.display = 'none';
+      }, 1000);
+    }
+
+    // 确保视频路径正确
+    const videoPath = new URL(videoFile, window.location.href).href;
+    console.log('尝试播放视频:', videoPath);
+    
+    // 检查视频是否存在
+    fetch(videoPath)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`视频文件不存在: ${videoPath}`);
+        }
+        
+        // 预加载视频
+        videoPlayer.preload = 'auto';
+        videoPlayer.src = videoPath;
+        
+        // 添加加载事件监听
+        videoPlayer.onloadeddata = function() {
+          console.log('视频加载完成，开始播放');
+          videoPlayer.style.display = 'block';
+          
+          const playPromise = videoPlayer.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              console.log('视频开始播放');
+            }).catch(error => {
+              console.error('视频播放失败:', error);
+              showError('视频播放失败，请重试');
+              videoPlayer.style.display = 'none';
+              // 如果视频播放失败，重新显示提示文字
+              if (voicePrompt) {
+                voicePrompt.style.display = 'block';
+                setTimeout(() => {
+                  voicePrompt.style.opacity = '1';
+                }, 100);
+              }
+            });
+          }
+        };
+        
+        // 添加错误事件监听
+        videoPlayer.onerror = function() {
+          console.error('视频加载错误:', videoPlayer.error);
+          showError('视频加载失败，请重试');
+          videoPlayer.style.display = 'none';
+          // 如果视频加载失败，重新显示提示文字
+          if (voicePrompt) {
+            voicePrompt.style.display = 'block';
+            setTimeout(() => {
+              voicePrompt.style.opacity = '1';
+            }, 100);
+          }
+        };
+      })
+      .catch(error => {
+        console.error('视频加载失败:', error);
+        showError('请确保视频文件已放置在正确位置');
+        videoPlayer.style.display = 'none';
+        // 如果视频加载失败，重新显示提示文字
+        if (voicePrompt) {
+          voicePrompt.style.display = 'block';
+          setTimeout(() => {
+            voicePrompt.style.opacity = '1';
+          }, 100);
+        }
+      });
+    
+    videoPlayer.onended = function() {
+      console.log('视频播放结束');
+      videoPlayer.style.display = 'none';
+      // 视频播放结束后，重新显示提示文字
+      if (voicePrompt) {
+        voicePrompt.style.display = 'block';
+        setTimeout(() => {
+          voicePrompt.style.opacity = '1';
+        }, 100);
+      }
+    };
+  } catch (error) {
+    console.error('视频播放出错:', error);
+    showError('视频播放出错，请重试');
+    // 如果发生错误，重新显示提示文字
+    const voicePrompt = document.querySelector('.voice-prompt');
+    if (voicePrompt) {
+      voicePrompt.style.display = 'block';
+      setTimeout(() => {
+        voicePrompt.style.opacity = '1';
+      }, 100);
+    }
+  }
+}
+
+// 修改点击事件处理
+document.querySelector('.voice-status').addEventListener('click', function() {
+  if (!isRecognitionActive) {
+    startSpeech();
+  } else {
+    // 停止语音识别
+    if (recognition) {
+      try {
+        recognition.stop();
+      } catch (error) {
+        console.error('停止语音识别失败:', error);
+      }
+    }
+    isRecognitionActive = false;
+    this.textContent = '点击开始语音输入';
+  }
+});
+
+// 修改音量更新函数
+function updateVolume() {
+  if (!analyser || !dataArray || !isListening) {
+    return;
+  }
+
+  try {
+    analyser.getByteFrequencyData(dataArray);
+    const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+    const volume = Math.min(100, Math.max(0, average));
+    
+    const volumeIndicator = document.querySelector('.volume-indicator');
+    if (volumeIndicator) {
+      volumeIndicator.style.width = `${volume}%`;
+      volumeIndicator.style.backgroundColor = `hsl(${120 - volume}, 100%, 50%)`;
+    }
+    
+    requestAnimationFrame(updateVolume);
+  } catch (error) {
+    console.error('更新音量失败:', error);
+  }
+}
+
+// 页面加载时显示初始文字
+window.addEventListener('load', () => {
+  // 创建萤火虫效果
+  createFireflies();
+  
+  // 设置背景音乐自动播放
+  const bgMusic = document.getElementById('bgMusic');
+  bgMusic.volume = 0.5; // 设置音量为50%
+  bgMusic.play().catch(function(error) {
+    console.log("音频自动播放失败:", error);
+  });
+  
+  const initialText = document.querySelector('.initial-text');
+  initialText.classList.add('show');
+  
+  // 逐段显示文字
+  const paragraphs = initialText.querySelectorAll('p');
+  paragraphs.forEach((p, index) => {
+    setTimeout(() => {
+      p.classList.add('show');
+    }, index * 1000); // 每段文字间隔1秒显示
+  });
+  
+  // 添加点击事件
+  initialText.addEventListener('click', () => {
+    // 停止自动隐藏的计时器
+    clearTimeout(window.textHideTimeout);
+    
+    // 立即显示所有文字
+    paragraphs.forEach(p => p.classList.add('show'));
+    
+    // 淡出文字
+    initialText.style.opacity = '0';
+    setTimeout(() => {
+      initialText.style.display = 'none';
+      showVoicePrompt();
+    }, 1000);
+  });
+  
+  // 设置自动隐藏的计时器
+  window.textHideTimeout = setTimeout(() => {
+    initialText.style.opacity = '0';
+    setTimeout(() => {
+      initialText.style.display = 'none';
+      showVoicePrompt();
+    }, 2000);
+  }, paragraphs.length * 1000 + 5000); // 所有文字显示完成后再等待5秒
+});
+
+function showVoicePrompt() {
+  const voicePrompt = document.querySelector('.voice-prompt');
+  voicePrompt.style.display = 'block';
+  setTimeout(() => {
+    voicePrompt.classList.add('show');
+    
+    // 逐段显示文字
+    const paragraphs = voicePrompt.querySelectorAll('p');
+    paragraphs.forEach((p, index) => {
+      setTimeout(() => {
+        p.classList.add('show');
+      }, index * 1000); // 每段文字间隔1秒显示
+    });
+    
+    // 所有文字显示完成后，显示交互界面
+    setTimeout(() => {
+      document.querySelector('.voice-status').classList.add('show');
+      document.querySelector('.volume-container').classList.add('show');
+      // 显示跳过按钮
+      document.querySelector('.skip-button').classList.add('show');
+    }, paragraphs.length * 1000 + 2000);
+  }, 100);
+}
+
+function showError(message) {
+  errorMessage.textContent = message;
+  errorMessage.style.display = 'block';
+  setTimeout(() => {
+    errorMessage.style.display = 'none';
+  }, 3000);
+}
+
+function playRandomVideo() {
+  const videoNumber = Math.floor(Math.random() * 3) + 1; // 随机选择1-3
+  playVideo(`${videoNumber}.mp4`);
+}
+
+function createFireflies() {
+  const container = document.body;
+  const fireflyCount = 20; // 萤火虫数量
+
+  for (let i = 0; i < fireflyCount; i++) {
+    const firefly = document.createElement('div');
+    firefly.className = 'firefly';
+    
+    // 随机位置
+    firefly.style.left = Math.random() * 100 + 'vw';
+    firefly.style.top = Math.random() * 100 + 'vh';
+    
+    // 随机动画延迟
+    firefly.style.animationDelay = Math.random() * 8 + 's';
+    
+    // 随机大小
+    const size = Math.random() * 4 + 4; // 调整大小范围
+    firefly.style.width = size + 'px';
+    firefly.style.height = size + 'px';
+    
+    // 随机动画持续时间
+    const duration = Math.random() * 4 + 6;
+    firefly.style.animationDuration = duration + 's';
+    
+    container.appendChild(firefly);
+  }
+}
+
+function showFinalText() {
+  // 隐藏交互界面
+  document.querySelector('.voice-status').style.display = 'none';
+  document.querySelector('.volume-container').style.display = 'none';
+  
+  // 显示背景图片
+  const bg = document.querySelector('.fullscreen-bg');
+  bg.style.display = 'block';
+  setTimeout(() => {
+    bg.classList.add('show');
+  }, 100);
+  
+  // 显示最终文字
+  const finalText = document.querySelector('.final-text');
+  finalText.style.display = 'block';
+  setTimeout(() => {
+    finalText.classList.add('show');
+    
+    // 逐段显示文字，每段间隔2秒
+    const paragraphs = finalText.querySelectorAll('p');
+    paragraphs.forEach((p, index) => {
+      setTimeout(() => {
+        p.classList.add('show');
+      }, index * 2000); // 每段文字间隔2秒显示
+    });
+
+    // 所有文字显示完成后，显示THE END
+    setTimeout(() => {
+      // 显示THE END
+      const theEnd = document.querySelector('.the-end');
+      theEnd.classList.add('show');
+      // 显示返回首页按钮
+      const homeButton = document.querySelector('.home-button');
+      homeButton.classList.add('show');
+    }, paragraphs.length * 2000);
+
+    // 所有文字显示完成后，等待更长时间再隐藏
+    setTimeout(() => {
+      finalText.style.opacity = '0';
+      bg.style.opacity = '0';
+      setTimeout(() => {
+        finalText.style.display = 'none';
+        bg.style.display = 'none';
+      }, 2000);
+    }, paragraphs.length * 2000 + 10000); // 所有文字显示完成后等待10秒
+  }, 100);
+}
+
+// 添加跳过按钮点击事件
+document.querySelector('.skip-button').addEventListener('click', function() {
+  // 停止语音识别
+  if (recognition && isRecognitionActive) {
+    try {
+      recognition.stop();
+    } catch (error) {
+      console.error('停止语音识别失败:', error);
+    }
+  }
+  
+  // 隐藏所有相关元素
+  document.querySelector('.voice-prompt').style.display = 'none';
+  document.querySelector('.voice-status').style.display = 'none';
+  document.querySelector('.volume-container').style.display = 'none';
+  this.style.display = 'none';
+  
+  // 显示最终文本
+  showFinalText();
+});
+
+// 添加自定义鼠标效果
+const cursor = document.querySelector('.custom-cursor');
+
+document.addEventListener('mousemove', (e) => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+});
+
+// 鼠标按下时改变光点大小
+document.addEventListener('mousedown', () => {
+  cursor.classList.add('active');
+});
+
+document.addEventListener('mouseup', () => {
+  cursor.classList.remove('active');
+});
+
+// 鼠标进入可点击元素时改变光点大小
+document.querySelectorAll('a, button, [role="button"], .voice-status, .skip-button, .initial-text').forEach(element => {
+  element.addEventListener('mouseenter', () => {
+    cursor.classList.add('active');
+  });
+  
+  element.addEventListener('mouseleave', () => {
+    cursor.classList.remove('active');
+  });
+});
+
+// 添加音频播放函数
+function playBackgroundMusic() {
+  const bgMusic = document.getElementById('bgMusic');
+  bgMusic.volume = 0.5; // 设置音量为50%
+  
+  // 尝试自动播放
+  const playPromise = bgMusic.play();
+  
+  if (playPromise !== undefined) {
+    playPromise.then(_ => {
+      // 自动播放成功
+      console.log('背景音乐开始播放');
+    })
+    .catch(error => {
+      // 自动播放失败，添加点击事件监听
+      console.log('自动播放失败，等待用户交互');
+      document.addEventListener('click', function startAudio() {
+        bgMusic.play();
+        document.removeEventListener('click', startAudio);
+      }, { once: true });
+    });
+  }
+}
+
+// 在页面加载完成后播放音乐
+window.addEventListener('load', playBackgroundMusic);
+
+// 在页面可见性改变时处理音频播放
+document.addEventListener('visibilitychange', function() {
+  const bgMusic = document.getElementById('bgMusic');
+  if (document.hidden) {
+    bgMusic.pause();
+  } else {
+    bgMusic.play();
+  }
+});
+    </script>
+</body>
+</html> 

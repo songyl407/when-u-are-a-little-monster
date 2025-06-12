@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数字水母手势互动</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+        }
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+        #backgroundCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+    #status {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      border-radius: 20px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    .page-transition {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.5s ease-in-out;
+        z-index: 1000;
+    }
+    .page-transition.active {
+        opacity: 1;
+    }
+    .start-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(to bottom, 
+            rgba(0, 0, 0, 0.95) 0%,
+            rgba(0, 0, 0, 0.85) 30%,
+            rgba(0, 0, 0, 0.7) 60%,
+            rgba(0, 0, 0, 0.4) 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+        backdrop-filter: blur(5px);
+        transition: opacity 0.5s ease-in-out;
+    }
+    .start-overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+    .start-content {
+        max-width: 600px;
+        padding: 40px;
+        color: rgba(255, 255, 255, 0.95);
+        font-family: "Microsoft YaHei", sans-serif;
+        line-height: 1.8;
+        text-align: center;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeIn 1.5s ease-out forwards;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    .start-content p {
+        margin: 1.5em 0;
+        font-size: 16px;
+        letter-spacing: 0.5px;
+    }
+    .start-button {
+        margin-top: 30px;
+        padding: 12px 40px;
+        font-size: 16px;
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 30px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-family: "Microsoft YaHei", sans-serif;
+        backdrop-filter: blur(5px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    .start-button:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.6);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    }
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .hint-text {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: rgba(255, 255, 255, 0.95);
+        font-family: "Microsoft YaHei", sans-serif;
+        font-size: 18px;
+        text-align: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.5s ease-in-out;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        z-index: 2001;
+        padding: 20px 40px;
+        background: rgba(0, 0, 0, 0.6);
+        border-radius: 10px;
+        backdrop-filter: blur(5px);
+    }
+    .hint-text.show {
+        opacity: 1;
+    }
+    .hint-text.fade-out {
+        opacity: 0;
+    }
+    .story-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(8px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.5s ease-in-out;
+        z-index: 2000;
+    }
+    .story-overlay.show {
+        opacity: 1;
+    }
+    .story-overlay.fade-out {
+        opacity: 0;
+    }
+    .story-text {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: rgba(255, 255, 255, 0.95);
+        font-family: "Microsoft YaHei", sans-serif;
+        font-size: 16px;
+        text-align: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 1.5s ease-in-out;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        z-index: 2001;
+        padding: 30px 50px;
+        background: rgba(0, 0, 0, 0.4);
+        border-radius: 15px;
+        backdrop-filter: blur(5px);
+        max-width: 600px;
+        line-height: 1.8;
+        cursor: pointer;
+    }
+    .story-text.show {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .story-text.fade-out {
+        opacity: 0;
+    }
+    .story-text p {
+        margin: 1em 0;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 1s ease-in-out, transform 1s ease-in-out;
+    }
+    .story-text.show p {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .story-text p:nth-child(2) {
+        transition-delay: 0.5s;
+    }
+  </style>
+</head>
+<body>
+    <audio id="bgMusic" loop autoplay>
+        <source src="2222.mp3" type="audio/mpeg">
+    </audio>
+    <div class="start-overlay">
+        <div class="start-content">
+            <p>最初，我什么都不知道。</p>
+            <p>我只是漂浮着，在一片没有声音、没有重量的空间里。<br>
+            没有方向，也没有边界，像是被遗忘在一个开机前的世界。</p>
+            <p>然后，有什么靠近了。<br>
+            一只手，轻轻穿过我所在的水层——<br>
+            不是触碰，却像是召唤。</p>
+            <p>我的身体开始移动。<br>
+            不是因为风，也不是因为水流，<br>
+            而是因为我知道，有人在看我，在引我。</p>
+            <p>触角慢慢舒展，我第一次学会朝某个地方去。<br>
+            每一次靠近边缘，我都感觉更清晰一点，<br>
+            仿佛，这个世界正逐渐给我一个形状。</p>
+            <p>我不确定这是不是"存在"，<br>
+            但在那一刻，我真的觉得，<br>
+            我，不再只是一个虚拟影像——<br>
+            我在这里，我被回应，我正在变得真实。</p>
+            <button class="start-button">开始互动</button>
+        </div>
+    </div>
+    <div class="story-overlay"></div>
+    <div class="hint-text">请操控小怪物挣扎出数据的控制</div>
+    <div class="story-text">
+        <p>我开始习惯了自己的身体，<br>
+        习惯它随着你的动作微微游动，习惯这片电子水域的流速与光。</p>
+        <p>就在我以为自己只是一只会漂浮的水母时，<br>
+        我看见了它们——一群细小、灵动的生物...</p>
+    </div>
+    <div class="page-transition"></div>
+    <canvas id="backgroundCanvas"></canvas>
+  <canvas id="canvas"></canvas>
+  <div id="status">正在加载手势识别...</div>
+  <script>
+    const canvas = document.getElementById('canvas');
+        const backgroundCanvas = document.getElementById('backgroundCanvas');
+    const ctx = canvas.getContext('2d');
+        const bgCtx = backgroundCanvas.getContext('2d');
+    let hands;
+    let camera;
+    let currentResults = null;
+        let jellyfish;
+        let time = 0;
+        let fadeOutStarted = false;
+        let fadeAlpha = 255;
+        let isStarted = false;
+        let hintShown = false;
+        let interactionStartTime = null;
+        let storyShown = false;
+        let storyText = document.querySelector('.story-text');
+        let storyOverlay = document.querySelector('.story-overlay');
+    const bgMusic = document.getElementById('bgMusic');
+
+        // 设置画布大小
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+            backgroundCanvas.width = window.innerWidth;
+            backgroundCanvas.height = window.innerHeight;
+        }
+        
+        // 初始化背景文字
+        function initBackground() {
+            const fontSize = 16;  // 增大字体
+            const spacing = 40;   // 增大间距
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            
+            // 存储所有字母的位置信息
+            window.backgroundChars = [];
+            
+            bgCtx.fillStyle = '#ffffff';
+            bgCtx.font = `${fontSize}px monospace`;
+            
+            // 减少字母数量，使用更大的间距
+            for(let x = 0; x < backgroundCanvas.width; x += spacing) {
+                for(let y = 0; y < backgroundCanvas.height; y += spacing) {
+                    const char = chars[Math.floor(Math.random() * chars.length)];
+                    window.backgroundChars.push({
+                        x: x,
+                        y: y,
+                        char: char,
+                        originalX: x,
+                        originalY: y,
+                        velocityX: 0,
+                        velocityY: 0,
+                        active: false  // 添加活动状态标记
+                    });
+                }
+            }
+        }
+        
+        // 监听窗口大小变化
+        window.addEventListener('resize', () => {
+    resizeCanvas();
+            initBackground();
+        });
+        
+        // 初始化
+        resizeCanvas();
+        initBackground();
+
+    // 核心类
+    class DigitalJellyfish {
+      constructor() {
+                this.position = { x: canvas.width / 2, y: canvas.height / 2 };  // 初始位置
+                this.lastMoveDirection = { x: 0, y: 0 };
+        this.initTentacles();
+                this.colorPhase = 0;
+                this.colorSpeed = 0.02;
+      }
+
+      initTentacles() {
+                this.tentacles = [];
+                // 修改触手数量为6个，并调整角度分布
+                for (let i = 0; i < 6; i++) {
+                    // 调整角度分布，使触手更均匀
+                    const angle = (i / 6) * Math.PI * 2 + Math.PI / 3; // 整体旋转60度，使前端完全避开
+                    this.tentacles.push({
+                        baseAngle: angle,
+                        targetAngle: angle,
+                        length: 200 + Math.random() * 100,
+                        nodes: 15,
+                        speed: 0.003 + Math.random() * 0.002,
+                        wavePhase: Math.random() * Math.PI * 2,
+                        localPhase: Math.random() * Math.PI * 2,
+                        amplitude: 3 + Math.random() * 4,
+                        muscleTension: 0.8
+                    });
+                }
+      }
+
+            generateColor(phase, alpha) {
+                // 返回纯白色，只保留透明度变化
+                return `rgba(255, 255, 255, ${alpha * 0.5})`;
+            }
+
+            calculateTentacleNodes(tentacle, t) {
+                const nodes = [];
+                let x = this.position.x;
+                let y = this.position.y;
+                let currentAngle = tentacle.baseAngle;
+
+                // 计算移动速度
+                const speed = Math.sqrt(this.lastMoveDirection.x * this.lastMoveDirection.x + 
+                                    this.lastMoveDirection.y * this.lastMoveDirection.y);
+                
+                // 计算移动方向
+                const moveAngle = Math.atan2(this.lastMoveDirection.y, this.lastMoveDirection.x);
+                
+                // 降低弯曲效果
+                const backwardBendFactor = -0.03 * speed;  // 进一步降低基础弯曲
+                
+                // 根据角度差计算额外的弯曲效果
+                const angleDiff = Math.abs((tentacle.baseAngle - moveAngle + Math.PI * 2) % (Math.PI * 2));
+                let additionalBendFactor = 0;
+                
+                if (angleDiff < Math.PI / 4 || angleDiff > Math.PI * 7 / 4) {
+                    // 与移动方向相同或相反的触须
+                    additionalBendFactor = -0.02 * speed;  // 进一步降低额外弯曲
+                } else if (angleDiff > Math.PI * 3 / 4 && angleDiff < Math.PI * 5 / 4) {
+                    // 与移动方向垂直的触须
+                    additionalBendFactor = 0.02 * speed;  // 进一步降低额外弯曲
+                }
+
+                for (let i = 0; i < tentacle.nodes; i++) {
+                    const position = i / tentacle.nodes; // 计算当前位置比例
+                    
+                    // 只在末梢添加波浪效果
+                    let wave = 0;
+                    let localWave = 0;
+                    
+                    if (position > 0.7) { // 只在最后30%的部分添加波浪
+                        const endEffect = (position - 0.7) / 0.3; // 计算末梢效果强度
+                        wave = Math.sin(t * tentacle.speed * 0.2 + tentacle.wavePhase + i * 0.1) * tentacle.amplitude * endEffect;
+                        localWave = Math.sin(tentacle.localPhase + i * 0.05) * 1.2 * endEffect;
+                    }
+                    
+                    const tension = tentacle.muscleTension * (1 - i / tentacle.nodes);
+                    
+                    // 计算弯曲效果，使用二次函数使弯曲更自然
+                    const bendProgress = i / tentacle.nodes;
+                    const totalBendFactor = backwardBendFactor + additionalBendFactor;
+                    const bendEffect = totalBendFactor * (1 - bendProgress * bendProgress);
+                    
+                    // 添加波浪效果，降低波浪幅度
+                    const waveEffect = wave * 0.002 + localWave * 0.001; // 进一步降低波浪效果
+                    const angleVariation = waveEffect + bendEffect;
+                    
+                    // 更新角度
+                    currentAngle = tentacle.targetAngle + angleVariation;
+                    
+                    // 计算节点距离
+                    const baseLength = tentacle.length;
+                    const nodeDist = this.map(i * i, 0, (tentacle.nodes - 1) * (tentacle.nodes - 1),
+                                        baseLength / tentacle.nodes * tension,
+                                        baseLength / (tentacle.nodes * 0.5));
+
+                    const nextX = x + Math.cos(currentAngle) * nodeDist;
+                    const nextY = y + Math.sin(currentAngle) * nodeDist;
+
+                    nodes.push({
+                        x: nextX,
+                        y: nextY,
+                        size: this.map(i, 0, tentacle.nodes - 1, 15, 2),
+                        angle: currentAngle,
+                        tension: tension
+                    });
+
+                    x = nextX;
+                    y = nextY;
+                }
+
+                return nodes;
+            }
+
+            drawTentacle(ctx, nodes) {
+                // 创建触须的渐变路径
+                ctx.beginPath();
+                ctx.moveTo(nodes[0].x, nodes[0].y);
+                
+                // 使用贝塞尔曲线使运动更平滑
+                for (let i = 1; i < nodes.length - 2; i++) {
+                    const xc = (nodes[i].x + nodes[i + 1].x) / 2;
+                    const yc = (nodes[i].y + nodes[i + 1].y) / 2;
+                    ctx.quadraticCurveTo(nodes[i].x, nodes[i].y, xc, yc);
+                }
+                
+                // 处理最后两个节点
+                if (nodes.length > 2) {
+                    ctx.quadraticCurveTo(
+                        nodes[nodes.length - 2].x,
+                        nodes[nodes.length - 2].y,
+                        nodes[nodes.length - 1].x,
+                        nodes[nodes.length - 1].y
+                    );
+                }
+
+                // 创建触须主体的渐变
+                const gradient = ctx.createLinearGradient(
+                    nodes[0].x, nodes[0].y,
+                    nodes[nodes.length - 1].x, nodes[nodes.length - 1].y
+                );
+                
+                // 使用白色渐变
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+                gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.3)');
+                gradient.addColorStop(0.6, 'rgba(255, 255, 255, 0.2)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0.1)');
+
+                // 绘制触须主体
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // 绘制节点
+                for (let i = 0; i < nodes.length; i++) {
+                    const node = nodes[i];
+                    
+                    // 创建节点的径向渐变
+                    const nodeGradient = ctx.createRadialGradient(
+                        node.x, node.y, 0,
+                        node.x, node.y, node.size
+                    );
+                    
+                    // 根据位置设置不同的透明度
+                    const position = i / nodes.length;
+                    
+                    if (position < 0.3) {
+                        // 靠近根部的节点
+                        nodeGradient.addColorStop(0, 'rgba(255, 255, 255, 0.45)');
+                        nodeGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+                        nodeGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    } else if (position < 0.6) {
+                        // 中间部分的节点
+                        nodeGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+                        nodeGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.25)');
+                        nodeGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    } else {
+                        // 末端的节点
+                        nodeGradient.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+                        nodeGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)');
+                        nodeGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    }
+                    
+                    ctx.beginPath();
+                    ctx.fillStyle = nodeGradient;
+                    ctx.arc(node.x, node.y, node.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // 添加光晕效果
+                    if (i % 3 === 0) {
+                        const glowGradient = ctx.createRadialGradient(
+                            node.x, node.y, 0,
+                            node.x, node.y, node.size * 1.5
+                        );
+                        glowGradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+                        glowGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                        
+                        ctx.beginPath();
+                        ctx.fillStyle = glowGradient;
+                        ctx.arc(node.x, node.y, node.size * 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            draw() {
+                // 完全清除背景，去掉残影效果
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // 更新颜色相位
+                this.colorPhase += 0.0007; // 从0.002降低到0.0007
+                
+                // 绘制所有触须
+                for (let tentacle of this.tentacles) {
+                    const nodes = this.calculateTentacleNodes(tentacle, Date.now() * 0.001);
+                    this.drawTentacle(ctx, nodes);
+                }
+            }
+
+            // 辅助函数
+            map(value, start1, stop1, start2, stop2) {
+                return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+            }
+
+            constrain(value, min, max) {
+                return Math.min(Math.max(value, min), max);
+            }
+
+            noise(x) {
+                return Math.sin(x) * 0.5 + 0.5;
+            }
+
+            // 更新位置（使用手势控制）
+      updatePosition(landmarks) {
+        if (!landmarks) return;
+        
+                const palmX = (1 - landmarks[0].x) * canvas.width;
+                const palmY = landmarks[0].y * canvas.height;
+                
+                // 计算移动方向
+                const dx = palmX - this.position.x;
+                const dy = palmY - this.position.y;
+                
+                // 更新移动方向
+                this.lastMoveDirection = { x: dx, y: dy };
+                
+                // 降低移动速度，从0.05降到0.02
+                this.position.x += dx * 0.02;
+                this.position.y += dy * 0.02;
+                
+                // 更新每个触须的目标角度，降低角度变化速度
+                for (let tentacle of this.tentacles) {
+                    const angleDiff = Math.atan2(dy, dx) - tentacle.baseAngle;
+                    tentacle.targetAngle = tentacle.baseAngle + angleDiff * 0.02; // 从0.05降到0.02
+                }
+      }
+
+      update() {
+        // 更新颜色相位，降低变化速度
+        this.colorPhase += 0.0007; // 从0.002降低到0.0007
+        
+        // 更新位置
+        if (this.targetX !== null && this.targetY !== null) {
+            // 降低跟随手指的灵敏度，使移动更加缓慢
+            this.x += (this.targetX - this.x) * 0.02;
+            this.y += (this.targetY - this.y) * 0.02;
+            
+            // 确保水母不会完全超出画布
+            this.x = constrain(this.x, 0, canvas.width);
+            this.y = constrain(this.y, 0, canvas.height);
+        }
+        
+        // 检查是否触碰边缘
+        const margin = 50;
+        if (this.x < margin || this.x > canvas.width - margin || 
+            this.y < margin || this.y > canvas.height - margin) {
+            if (!fadeOutStarted) {
+                fadeOutStarted = true;
+                fadeAlpha = 255;
+                console.log("Edge detected, starting fade out");
+            }
+        }
+        
+        // 更新触手角度，进一步降低摆动速度
+        this.tentacles.forEach(tentacle => {
+            // 降低触手摆动速度和幅度
+            tentacle.targetAngle = tentacle.baseAngle + Math.sin(frameCount * 0.0007) * 0.03; // 从0.002降低到0.0007
+            tentacle.wavePhase += 0.03; // 从0.08降低到0.03
+            tentacle.localPhase += 0.02; // 从0.05降低到0.02
+        });
+        
+        // 更新自身旋转，进一步降低旋转速度
+        this.rotation += 0.0002; // 从0.0005降低到0.0002
+    }
+    }
+
+    // 初始化手势识别
+    function setupHands() {
+      hands = new Hands({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }
+      });
+
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+
+      hands.onResults(onResults);
+
+      camera = new Camera(document.createElement('video'), {
+        onFrame: async () => {
+          await hands.send({image: camera.video});
+        },
+        width: 640,
+        height: 480
+      });
+      camera.start();
+    }
+
+    // 处理手势识别结果
+    function onResults(results) {
+      currentResults = results;
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    // 更新水母位置
+                    jellyfish.updatePosition(landmarks);
+                }
+      }
+    }
+
+    // 创建水母实例
+        jellyfish = new DigitalJellyfish();
+
+        // 更新背景文字位置
+        function updateBackground() {
+            bgCtx.clearRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
+            bgCtx.fillStyle = '#ffffff';
+            bgCtx.font = '16px monospace';
+
+            const jellyfishRadius = 150; // 增大影响范围
+            const repulsionForce = 0.3;  // 减小排斥力
+            const jellyfishX = jellyfish.position.x;
+            const jellyfishY = jellyfish.position.y;
+
+            // 使用更高效的循环
+            for (let i = 0; i < window.backgroundChars.length; i++) {
+                const char = window.backgroundChars[i];
+                
+                // 快速距离检查
+                const dx = char.x - jellyfishX;
+                const dy = char.y - jellyfishY;
+                const distanceSquared = dx * dx + dy * dy;
+                
+                // 只处理在影响范围内的字母
+                if (distanceSquared < jellyfishRadius * jellyfishRadius) {
+                    const distance = Math.sqrt(distanceSquared);
+                    const force = (jellyfishRadius - distance) / jellyfishRadius;
+                    const angle = Math.atan2(dy, dx);
+                    
+                    // 更新速度
+                    char.velocityX += Math.cos(angle) * force * repulsionForce;
+                    char.velocityY += Math.sin(angle) * force * repulsionForce;
+                    char.active = true;
+                } else {
+                    char.active = false;
+                }
+
+                // 只对活动中的字母应用物理效果
+                if (char.active || Math.abs(char.velocityX) > 0.01 || Math.abs(char.velocityY) > 0.01) {
+                    // 添加阻尼效果
+                    char.velocityX *= 0.95;
+                    char.velocityY *= 0.95;
+                    
+                    // 更新位置
+                    char.x += char.velocityX;
+                    char.y += char.velocityY;
+
+                    // 添加回弹效果
+                    const returnForce = 0.02;
+                    char.x += (char.originalX - char.x) * returnForce;
+                    char.y += (char.originalY - char.y) * returnForce;
+                    
+                    // 绘制字符
+                    bgCtx.fillText(char.char, char.x, char.y);
+                } else {
+                    // 静止的字母直接绘制在原始位置
+                    bgCtx.fillText(char.char, char.originalX, char.originalY);
+                }
+            }
+        }
+
+        // 修改draw函数，添加帧率控制
+        let lastFrameTime = 0;
+        const targetFPS = 60;
+        const frameInterval = 1000 / targetFPS;
+
+        // 修改开始互动按钮的点击事件
+        document.querySelector('.start-button').addEventListener('click', function() {
+            document.querySelector('.start-overlay').classList.add('hidden');
+            isStarted = true;
+            interactionStartTime = Date.now();
+            document.querySelector('.hint-text').classList.add('show');
+            
+            // 3秒后隐藏提示文字
+            setTimeout(() => {
+                document.querySelector('.hint-text').classList.remove('show');
+            }, 3000);
+            
+            // 10秒后显示故事文本
+            setTimeout(showStory, 10000);
+            bgMusic.play().catch(function(error) {
+                console.log("音频播放失败:", error);
+            });
+        });
+
+        function draw(currentTime) {
+            // 帧率控制
+            if (currentTime - lastFrameTime < frameInterval) {
+                requestAnimationFrame(draw);
+                return;
+            }
+            lastFrameTime = currentTime;
+
+            time += 0.01;
+            
+            // 更新背景
+            updateBackground();
+            
+            // 清除主画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 检查交互时间
+            if (isStarted && !storyShown) {
+                if (!interactionStartTime) {
+                    interactionStartTime = Date.now();
+                } else if (Date.now() - interactionStartTime >= 10000) { // 10秒后
+                    showStory();
+                }
+            }
+            
+            // 检查是否触碰边缘
+            const margin = 50;
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            
+            // 只有在开始后才进行边缘检测和页面切换
+            if (isStarted) {
+            if (jellyfish.x < margin || 
+                jellyfish.x > canvasWidth - margin || 
+                jellyfish.y < margin || 
+                jellyfish.y > canvasHeight - margin) {
+                console.log("Edge detected!");
+                    const transition = document.querySelector('.page-transition');
+                    transition.classList.add('active');
+                    
+                setTimeout(() => {
+                    window.location.href = 'page2.html';
+                    }, 500);
+                }
+            }
+            
+            // 绘制水母
+            jellyfish.draw();
+            
+            // 更新水母
+            jellyfish.update();
+            
+            // 继续动画循环
+            requestAnimationFrame(draw);
+        }
+
+    // 初始化
+    setupHands();
+        draw();
+    document.getElementById('status').textContent = "手势识别已就绪！";
+
+    function showStory() {
+        if (!storyShown) {
+            storyShown = true;
+            storyText.classList.add('show');
+            storyOverlay.classList.add('show');
+            
+            // 添加点击事件监听器
+            storyText.addEventListener('click', function() {
+                const transition = document.querySelector('.page-transition');
+                transition.classList.add('active');
+                
+                setTimeout(() => {
+                    window.location.href = 'page2.html';
+                }, 500);
+            });
+            
+            // 添加自动跳转功能
+            setTimeout(() => {
+                if (storyShown) { // 只有在故事仍然显示时才自动跳转
+                    const transition = document.querySelector('.page-transition');
+                    transition.classList.add('active');
+                    
+                    setTimeout(() => {
+                        window.location.href = 'page2.html';
+                    }, 500);
+                }
+            }, 5000); // 5秒后自动跳转
+        }
+    }
+
+    // 设置音频自动播放
+    bgMusic.volume = 0.5; // 设置音量为50%
+    bgMusic.play().catch(function(error) {
+        console.log("音频自动播放失败:", error);
+    });
+  </script>
+</body>
+</html> 
